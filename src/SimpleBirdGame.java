@@ -89,6 +89,7 @@ import edu.macalester.graphics.Point;
 import edu.macalester.graphics.Rectangle;
 
 import java.awt.*;
+import java.awt.Image;
 import java.util.*;
 
 public class SimpleBirdGame {
@@ -99,7 +100,7 @@ public class SimpleBirdGame {
     private static final int OBSTACLE_SIZE = 40;
 
     private CanvasWindow canvas;
-    private Ellipse player;
+    private edu.macalester.graphics.Image player;
     private ArrayList<Obstacle> obstacles;
 
     private boolean isGameOver = false;
@@ -157,8 +158,10 @@ public class SimpleBirdGame {
     private void setupGame() {
         canvas.removeAll();
 
-        player = new Ellipse(100, HEIGHT / 2, PLAYER_SIZE, PLAYER_SIZE);
-        player.setFillColor(Color.BLUE);
+        player = new edu.macalester.graphics.Image("bird.png");
+        player.setPosition(100, HEIGHT / 2);
+        player.setMaxWidth(50);
+        player.setMaxHeight(50);
         canvas.add(player);
 
         obstacles = new ArrayList<>();
@@ -224,13 +227,20 @@ public class SimpleBirdGame {
     }
 
     private void maybeAddObstacle() {
-        if (Math.random() < 0.02) {
-            double y = Math.random() * (HEIGHT - OBSTACLE_SIZE - 100) + 50;
+    if (Math.random() < 0.02) {
+        double wallWidth = 40;
+        double gap = 120 + Math.random() * 60;
 
-            Obstacle o = new Obstacle(WIDTH, y, OBSTACLE_SIZE, canvas);
-            obstacles.add(o);
-        }
+        double gapY = Math.random() * (HEIGHT - gap - 100) + 50;
+
+        Obstacle top = new Obstacle(WIDTH + 200, 0, wallWidth, gapY, canvas);
+        obstacles.add(top);
+
+        double bottomY = gapY + gap;
+        Obstacle bottom = new Obstacle(WIDTH + 200, bottomY, wallWidth, HEIGHT - bottomY, canvas);
+        obstacles.add(bottom);
     }
+}
 
     private void moveObstacles() {
         for (Obstacle o : obstacles) {
@@ -240,19 +250,29 @@ public class SimpleBirdGame {
 
 
     private void checkCollision() {
-        for (Obstacle o : obstacles) {
-            if (o.canCollide()) {
-                double dx = player.getCenter().getX() - o.getShape().getCenter().getX();
-                double dy = player.getCenter().getY() - o.getShape().getCenter().getY();
-                double distance = Math.sqrt(dx * dx + dy * dy);
-                double radiusSum = PLAYER_SIZE / 2.0 + OBSTACLE_SIZE / 2.0;
+    for (Obstacle o : obstacles) {
+        if (!o.canCollide()) continue;
+        if (!o.isNearPlayer()) continue;
 
-                if (distance < radiusSum) {
-                    gameOver();
-                }
-            }
+        double px = player.getX();
+        double py = player.getY();
+        double pw = player.getWidth();
+        double ph = player.getHeight();
+
+        double ox = o.getShape().getX();
+        double oy = o.getShape().getY();
+        double ow = o.getShape().getWidth();
+        double oh = o.getShape().getHeight();
+
+        boolean xOverlap = px < ox + ow && px + pw > ox;
+        boolean yOverlap = py < oy + oh && py + ph > oy;
+        boolean hit = xOverlap && yOverlap;
+
+        if (hit) {
+            gameOver();
         }
     }
+}
 
     private void removeOffscreenObstacles() {
         Iterator<Obstacle> iter = obstacles.iterator();
