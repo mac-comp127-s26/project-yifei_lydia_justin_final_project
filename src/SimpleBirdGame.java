@@ -85,6 +85,9 @@
 // }
 
 import edu.macalester.graphics.*;
+import edu.macalester.graphics.Point;
+import edu.macalester.graphics.Rectangle;
+
 import java.awt.*;
 import java.util.*;
 
@@ -100,18 +103,55 @@ public class SimpleBirdGame {
     private ArrayList<Obstacle> obstacles;
 
     private boolean isGameOver = false;
+    private boolean isGameRunning = false;
     private int frameCount = 0;
     private int score = 0;
 
     private GraphicsText scoreText;
     private GraphicsText gameOverText;
 
+    private GraphicsText startMenuText;
+    private Rectangle startButton;
+    private GraphicsText startButtonText;
+
+    private boolean loopStarted = false;
+
     public SimpleBirdGame() {
         canvas = new CanvasWindow("Bird Demo", WIDTH, HEIGHT);
 
-        setupGame();
+        showStartMenu();
         setupMouseControl();
-        runGameLoop();
+        startGameLoop();
+    }
+
+    private void showStartMenu() {
+        canvas.removeAll();
+        isGameRunning = false;
+        
+        startMenuText = new GraphicsText("Bird Game");
+        startMenuText.setFontSize(48);
+        startMenuText.setPosition(WIDTH / 2 - startMenuText.getBounds().getWidth() / 2, 120);
+        canvas.add(startMenuText);
+
+        startButton = new Rectangle(WIDTH / 2 - 80, 200, 160, 50);
+        startButton.setFillColor(new Color(50, 150, 50));
+        startButton.setStrokeColor(Color.BLACK);
+        canvas.add(startButton);
+        
+        startButtonText = new GraphicsText("Start Game");
+        startButtonText.setFontSize(24);
+        startButtonText.setPosition(
+            WIDTH / 2 - startButtonText.getBounds().getWidth() / 2,
+            200 + startButton.getHeight() / 2 + startButtonText.getBounds().getHeight() / 2 - 5
+        );
+        startButtonText.setFillColor(Color.WHITE);
+        canvas.add(startButtonText);
+
+        GraphicsText tip = new GraphicsText("Click button to start");
+        tip.setFontSize(14);
+        tip.setPosition(WIDTH / 2 - tip.getBounds().getWidth() / 2, 290);
+        tip.setFillColor(Color.GRAY);
+        canvas.add(tip);
     }
 
     private void setupGame() {
@@ -124,6 +164,7 @@ public class SimpleBirdGame {
         obstacles = new ArrayList<>();
 
         isGameOver = false;
+        isGameRunning = true;
         frameCount = 0;
         score = 0;
 
@@ -131,26 +172,42 @@ public class SimpleBirdGame {
         scoreText.setFontSize(16);
         scoreText.setPosition(10, 20);
         canvas.add(scoreText);
+
+        startGameLoop();
     }
 
     private void setupMouseControl() {
         canvas.onMouseMove(event -> {
-            if (!isGameOver) {
+            if (isGameRunning && !isGameOver && player != null) {
                 double newY = event.getPosition().getY() - PLAYER_SIZE / 2;
+                newY = Math.max(0, Math.min(newY, HEIGHT - PLAYER_SIZE));
                 player.setPosition(player.getX(), newY);
             }
         });
 
         canvas.onMouseDown(event -> {
+            Point clickPos = event.getPosition();
+            
+            if (!isGameRunning && startButton != null) {
+                if (clickPos.getX() >= startButton.getX() && 
+                    clickPos.getX() <= startButton.getX() + startButton.getWidth() &&
+                    clickPos.getY() >= startButton.getY() && 
+                    clickPos.getY() <= startButton.getY() + startButton.getHeight()) {
+                    
+                    setupGame();
+                }
+                return;
+            }
+            
             if (isGameOver) {
-                setupGame();
+                showStartMenu(); 
             }
         });
     }
 
-    private void runGameLoop() {
+    private void startGameLoop() {
         canvas.animate(() -> {
-            if (!isGameOver) {
+            if (isGameRunning && !isGameOver) {
                 frameCount++;
 
                 moveObstacles();
@@ -167,7 +224,7 @@ public class SimpleBirdGame {
     }
 
     private void maybeAddObstacle() {
-        if (Math.random() < 0.1) {
+        if (Math.random() < 0.02) {
             double y = Math.random() * (HEIGHT - OBSTACLE_SIZE - 100) + 50;
 
             Obstacle o = new Obstacle(WIDTH, y, OBSTACLE_SIZE, canvas);
@@ -184,16 +241,15 @@ public class SimpleBirdGame {
 
     private void checkCollision() {
         for (Obstacle o : obstacles) {
+            if (o.canCollide()) {
+                double dx = player.getCenter().getX() - o.getShape().getCenter().getX();
+                double dy = player.getCenter().getY() - o.getShape().getCenter().getY();
+                double distance = Math.sqrt(dx * dx + dy * dy);
+                double radiusSum = PLAYER_SIZE / 2.0 + OBSTACLE_SIZE / 2.0;
 
-            double dx = player.getCenter().getX() - o.getShape().getCenter().getX();
-            double dy = player.getCenter().getY() - o.getShape().getCenter().getY();
-
-            double distance = Math.sqrt(dx * dx + dy * dy);
-
-            double radiusSum = PLAYER_SIZE / 2.0 + OBSTACLE_SIZE / 2.0;
-
-            if (!isGameOver && distance < radiusSum) {
-                gameOver();
+                if (distance < radiusSum) {
+                    gameOver();
+                }
             }
         }
     }
@@ -217,6 +273,7 @@ public class SimpleBirdGame {
 
     private void gameOver() {
         isGameOver = true;
+        isGameRunning = false;
 
         gameOverText = new GraphicsText("Game Over! Click to Restart");
         gameOverText.setFontSize(30);
